@@ -1,5 +1,5 @@
 {
-    "name": "vue-component-graph",
+    "name": "@martinszeltins/vue-component-graph",
     "version": "1.0.0",
     "description": "Visualize Vue component dependencies (ASCII & HTML)",
     "type": "module",
@@ -23,7 +23,15 @@
     "license": "MIT",
     "repository": {
         "type": "git",
-        "url": "https://github.com/you/vue-component-graph.git"
+        "url": "https://github.com/martinszeltins/vue-component-graph.git"
+    },
+    "bugs": {
+        "url": "https://github.com/martinszeltins/vue-component-graph/issues"
+    },
+    "homepage": "https://github.com/martinszeltins/vue-component-graph#readme",
+    "author": "Martins Zeltins",
+    "publishConfig": {
+        "access": "public"
     },
     "keywords": ["vue", "component", "graph", "ascii-tree", "html-tree"]
 }
