@@ -1,0 +1,22 @@
+{
+    "name": "vue-component-deps",
+    "version": "1.0.0",
+    "type": "module",
+    "bin": {
+        "vue-deps": "dist/index.js"
+    },
+    "scripts": {
+        "build": "tsc",
+        "start": "node dist/index.js"
+    },
+    "dependencies": {
+        "commander": "^10.0.0",
+        "fast-glob": "^3.2.7",
+        "parse5": "^6.0.1"
+    },
+    "devDependencies": {
+        "typescript": "^5.1.6",
+        "@types/node": "^18.0.0",
+        "@types/parse5": "^6.0.1"
+    }
+}
