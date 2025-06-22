@@ -1,9 +1,5 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import { program } from 'commander';
-// A simple logger to track file and tag processing.
-const log = (...args) => console.debug('[vue-deps]', ...args);
-// Recursively find all .vue files under a directory, skipping node_modules.
 const findVueFiles = async (root) => {
     const entries = await fs.readdir(root, { withFileTypes: true });
     const files = [];
@@ -20,7 +16,6 @@ const findVueFiles = async (root) => {
     }
     return files;
 };
-// Extract component tags from file content.
 const extractComponents = (content) => {
     const tagPattern = /<([A-Za-z][A-Za-z0-9-]*)/g;
     const tags = new Set();
@@ -32,18 +27,14 @@ const extractComponents = (content) => {
     }
     return [...tags];
 };
-// Resolve a tag or import name to a .vue file.
 const resolveComponentPath = (tag, allFiles) => {
     const kebab = tag.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
     const lower = tag.toLowerCase();
-    for (const file of allFiles) {
+    return allFiles.find(file => {
         const name = path.basename(file, '.vue').toLowerCase();
-        if (name === kebab || name === lower)
-            return file;
-    }
-    return null;
+        return name === kebab || name === lower;
+    }) ?? null;
 };
-// Build dependency graph recursively, including both <tag> usage and imported components.
 const buildGraph = async (entry, allFiles, graph) => {
     const abs = path.resolve(entry);
     if (graph[abs])
@@ -56,7 +47,6 @@ const buildGraph = async (entry, allFiles, graph) => {
         return;
     }
     graph[abs] = new Set();
-    // 1) Imported components detection (exclude "import type")
     const importPattern = /import\s+(?!type)\{([^}]+)\}\s+from\s+['"][^'"]+['"]/g;
     let importMatch;
     while ((importMatch = importPattern.exec(content))) {
@@ -72,7 +62,6 @@ const buildGraph = async (entry, allFiles, graph) => {
             }
         }
     }
-    // 2) Static <Component> tags
     const tags = extractComponents(content);
     for (const tag of tags) {
         const resolved = resolveComponentPath(tag, allFiles);
@@ -82,25 +71,24 @@ const buildGraph = async (entry, allFiles, graph) => {
         }
     }
 };
-// Print an ASCII tree for an entry file.
 const printAscii = (entry, graph) => {
-    console.log(path.basename(entry));
+    const lines = [];
+    lines.push(path.basename(entry));
     const walk = (node, indent) => {
-        const children = Array.from(graph[node] || []);
+        const children = Array.from(graph[node] ?? []);
         children.forEach((child, idx) => {
             const isLast = idx === children.length - 1;
             const branch = isLast ? '└── ' : '├── ';
-            console.log(indent + branch + path.basename(child));
-            const nextIndent = indent + (isLast ? '    ' : '│   ');
-            walk(child, nextIndent);
+            lines.push(`${indent}${branch}${path.basename(child)}`);
+            walk(child, indent + (isLast ? '    ' : '│   '));
         });
     };
     walk(entry, '');
+    return lines.join('\n');
 };
-// Generate HTML tree view with folding, hiding, and depth-based colors.
 const genHTML = (graph, roots) => {
     const renderNode = (node) => {
-        const children = Array.from(graph[node] || []);
+        const children = Array.from(graph[node] ?? []);
         const hasChildren = children.length > 0;
         return `
             <li>
@@ -116,10 +104,10 @@ const genHTML = (graph, roots) => {
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Component Tree</title>
-  <style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Component Tree</title>
+    <style>
     /* Dark mode with accent colors */
     body {
       background: #0d1117;
@@ -228,14 +216,14 @@ const genHTML = (graph, roots) => {
       background: #3c424b;
       border-color: #616670;
     }
-  </style>
+    </style>
 </head>
 <body>
-  <div class="tree-container">
-    ${lists}
-  </div>
-  <script>
-    // Fold/unfold logic
+    <div class="tree-container">
+        ${lists}
+    </div>
+    <script>
+ // Fold/unfold logic
     document.querySelectorAll('.tree-root .parent').forEach(function(node) {
       var toggle = node.querySelector('.toggle');
       if (!toggle) return;
@@ -276,27 +264,19 @@ const genHTML = (graph, roots) => {
         });
       });
     });
-  </script>
+    </script>
 </body>
 </html>`;
 };
-program
-    .option('-r, --root <dir>', 'root directory to scan for .vue files', process.cwd())
-    .option('-o, --output <type>', 'ascii or html', 'ascii')
-    .argument('<targets...>', 'file(s)/dir(s)')
-    .action(async (targets, options) => {
-    const scanRoot = path.resolve(options.root);
-    const allFiles = await findVueFiles(scanRoot);
+export const generateAsciiTree = async ({ root, entry }) => {
+    const allFiles = await findVueFiles(root);
     const graph = {};
-    for (const t of targets)
-        await buildGraph(path.resolve(t), allFiles, graph);
-    if (options.output === 'html') {
-        const roots = targets.map(t => path.resolve(t));
-        console.log(genHTML(graph, roots));
-    }
-    else {
-        for (const t of targets)
-            printAscii(path.resolve(t), graph);
-    }
-})
-    .parse(process.argv);
+    await buildGraph(entry, allFiles, graph);
+    return printAscii(entry, graph);
+};
+export const generateHtmlTree = async ({ root, entry }) => {
+    const allFiles = await findVueFiles(root);
+    const graph = {};
+    await buildGraph(entry, allFiles, graph);
+    return genHTML(graph, [entry]);
+};
